@@ -1,0 +1,547 @@
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<conio.h>
+#include<unistd.h>
+#include <time.h>
+void display_menu();
+struct playlist
+{
+   int pid;
+   int no_of_song;
+   struct playlist *next;
+   struct playlist *prev;
+   struct song *song_head=NULL;
+   
+}*pl,*play_start=NULL,*play_ptr,*create_active,*select_active;
+struct song
+{
+	int sid;
+	struct song *next;
+	struct song *prev;
+}*songlast=NULL,*songstart=NULL,*song_ptr;
+struct undo{
+char operation;
+int id;
+playlist *playhead;
+song *topsong;
+undo *next; 
+}*Record=NULL;
+//-----------------------------------------------------------stack operation-------------------------------------------------------//
+void pushinstack(playlist *head,int ID,char op)
+{       struct undo *newnode=(struct undo *)malloc(sizeof(struct undo));
+		newnode->id=ID;
+		newnode->playhead=head;
+		newnode->next=Record;
+	    newnode->operation=op;
+		newnode->topsong=head->song_head;
+		if(Record==NULL)
+		{ newnode->next=NULL;
+		}
+		Record=newnode;
+}
+struct undo *pop_stack()
+{
+	struct undo *temp;
+	temp=Record;
+	if(temp->next!=NULL)
+	{ Record=Record->next;
+	}
+	else
+	{ Record=NULL;
+	}
+	return temp;
+}
+//-------------------------------------------------------------------------------------------------------------//
+//------------------------------------------playlist operation---------------------------------------------//
+struct playlist *create_playlist()
+{     
+	struct playlist *newnode=(struct playlist *)malloc(sizeof(struct playlist));
+	printf("Enter playlist ID : ");
+	scanf("%d",&newnode->pid);
+	newnode->next=NULL;
+	newnode->song_head=NULL;
+	if(play_start==NULL){
+		newnode->prev=NULL;
+		play_start=newnode;
+		
+	}
+	else
+	{                      //insertion at end//     
+		play_ptr=play_start;
+		while(play_ptr->next!=NULL)
+		{
+			play_ptr=play_ptr->next;
+		}
+		play_ptr->next=newnode;
+		newnode->prev=play_ptr;
+		
+		
+	}
+	return newnode;
+}
+
+struct playlist *select_playlist()
+{  int search,flag=0;
+   printf("enter the playlist id :");
+   scanf("%d",&search);
+   play_ptr=play_start;
+   while(play_ptr!=NULL)
+   { 
+      if(play_ptr->pid==search)
+      { flag=1;
+        break;
+	  }
+	  else
+	  {
+	  	play_ptr=play_ptr->next;
+	  }
+   }
+   if(flag==1)
+   {  printf("PLAYLIST ID IS FOUND");
+      return play_ptr;
+   }
+   else
+   {
+   	   printf("PLAYLIST ID IS NOT FOUND");
+   	   return 0;
+   }
+}
+  	 
+
+void delete_playlist()
+{
+	int search,flag=0;
+	if(play_start==NULL)
+	{ 
+	  printf("NO PLAYLIST CREATEDn");
+	}
+	else
+	{  printf("enter the playlist id you want to delete :");
+	   scanf("%d",&search);
+	   play_ptr=play_start;
+	   while(play_ptr!=NULL)
+	   { 
+	     if(play_ptr->pid==search)
+	     {
+	     	flag=1;
+	     	break;
+		 }
+		 else
+		 {
+		 	play_ptr=play_ptr->next;
+		 }
+	}
+	
+	if(flag==1)
+	{
+	
+	    if(play_ptr->prev==NULL)
+	   { play_start=play_ptr->next;
+	     play_ptr->next->prev=NULL;
+	     free(play_ptr);
+	     printf("PLAYLIST DELETED");
+	   }
+	   else if(play_ptr->next==NULL)
+	   {  
+	     play_ptr->prev->next=NULL;
+	     free(play_ptr);
+	     printf("PLAYLIST DELETED");
+	   }
+	   else 
+	   { 
+	   play_ptr->prev->next=play_ptr->next;
+	   play_ptr->next->prev=play_ptr->prev;
+	   free(play_ptr);
+	   printf("PLAYLIST DELETED");
+	   }
+}
+else
+{
+	printf("PLAYLIST ID IS NOT FOUNDn");
+}
+    
+}
+}
+
+void display_playlist()
+{ play_ptr=play_start;
+	while(play_ptr!=NULL)
+	   { printf("%d->",play_ptr->pid);
+	       play_ptr=play_ptr->next;
+	   }
+	   printf("n");
+}
+
+
+//------------------------------------------song operation------------------------------------------------------------------//
+
+void add_song(struct playlist *head)
+{  char s='a';
+   struct song *newnode=(struct song *)malloc(sizeof(struct song));
+   printf("playlist number :");
+   printf("%d",head->pid);
+   printf("nenter song : ");
+   scanf("%d",&newnode->sid);
+   newnode->next=NULL;
+  if(head->song_head==NULL)
+  {  head->no_of_song=0;
+     head->no_of_song++;
+     songstart=newnode;
+     songlast=newnode;
+     songstart->prev=songstart->next;
+     head->song_head=newnode;
+     
+		
+  }
+  else
+  {                           //insertion at end circular doubly// 
+    songlast->next=newnode;
+    newnode->prev=songlast;
+    songlast=newnode;
+    songlast->next=songstart;
+    songstart->prev=songlast;
+    head->no_of_song++;
+  }
+   pushinstack(head,newnode->sid,s);
+}
+void delete_song_undo()
+{
+	if(Record==NULL)
+	{ printf("NO OPERATION PERFORMED");
+	}
+	else
+	{
+	  printf("last song id you added :%d",Record->id);	
+      
+    }
+  
+   
+}
+void add_song_undo()
+{
+	if(Record==NULL)
+	{ printf("NO OPERATION PERFORMED");
+	}
+	else
+	{
+	  printf("last song id you deleted:%d",Record->id);	
+      
+    }
+}
+void delete_song(struct playlist *head) 
+{  char s='d';
+   int search,flag=0;
+	printf("ENTER SONG ID YOU WANT TO DELETE :");
+	scanf("%d",&search);
+	song_ptr=head->song_head;
+	if(song_ptr==NULL)
+	{ printf("NO SONG IN PLAYLIST");
+	}
+	else
+	{
+	   while(song_ptr!=NULL)
+	   {   
+	     if(song_ptr->sid==search)
+	        { 
+			  flag=1;
+		
+	            break;
+			}
+			else
+			{ song_ptr=song_ptr->next;
+			}
+	   }
+	   if(flag==1)
+	   {  
+	     if(song_ptr->prev==songlast)
+	   {  
+	     song_ptr->next->prev=song_ptr->prev;
+	     head->song_head=song_ptr->next;
+	     songstart=song_ptr->next;
+	     head->no_of_song--;
+	     free(song_ptr);
+	     printf("SONG DELETED");
+	   }
+	    else if(song_ptr->next==songstart)
+	   {  
+	      song_ptr->prev->next=songstart;
+	      head->no_of_song--;
+	       free(song_ptr);
+	         printf("SONG DELETED");
+	   }
+	     else
+	     {  
+		    song_ptr->prev->next=song_ptr->next;
+	        song_ptr->next->prev=song_ptr->prev;
+	        head->no_of_song--;
+	         free(song_ptr);
+	           printf("SONG DELETED");
+		 }
+		  pushinstack(head,search,s);
+	}
+	else
+	{ printf("THIS SONG NOT FOUND");
+	}
+	
+}
+}
+//-------------------------------------------------undo-----------------------------------//
+void undo()
+{  
+	if(Record==NULL)
+	{  printf("NO OPERATION PERFORMED YET");
+	}
+	else
+	{ struct undo *temp;
+	  temp=pop_stack();
+	  if(temp->operation=='a')
+	 {  delete_song_undo();
+	 }
+	 else if(temp->operation=='d')
+	  { add_song_undo();
+	  }
+	}
+}
+//---------------------------------------------------------------------------------------------//
+void show_song(struct playlist *head,int mode)
+{   int search,flag=0;
+	song_ptr=head->song_head;
+	printf("songs :");
+	if(song_ptr==NULL)
+	{  printf("EMPTY PLAYLISTn");
+	}
+	else
+	{ 	
+	     if(mode==1)
+	      {
+		    do{
+				printf("%d->",song_ptr->sid);// problem//
+				song_ptr=song_ptr->next;
+			}
+			while(song_ptr!=head->song_head);
+			printf("nNO. OF SONG IN PLAYLIST %d is %d.",head->pid,head->no_of_song);
+          }
+		else if(mode==2)
+		{ printf("ENTER SONG TO SET ON REPEAT :");
+		  scanf("%d",&search);
+		  song_ptr=head->song_head;
+		  do{
+				if(song_ptr->sid==search)
+				{
+					flag=1;
+					break;
+				}
+				else
+				{ song_ptr=song_ptr->next;
+				}
+			
+			}while(song_ptr!=head->song_head);
+			
+			if(flag==0)
+			{
+				printf("NO SONG FOUNDn");
+			}
+			else
+			{
+				while(1)
+				{ if(kbhit())
+				  { break;
+				  }
+				  else
+				  {  sleep(2);
+					printf("%d->",song_ptr->sid);
+					printf("n");
+				  }
+			    }
+			}
+		}
+		else if(mode==3)
+		{ while(1)
+		  { if(kbhit())
+		    {  break;
+			}
+		  else
+		   { sleep(1); 
+		      do{  
+		           printf("%d->",song_ptr->sid);
+		           song_ptr=song_ptr->next;
+		   	    }
+		   	    while(song_ptr!=head->song_head);
+		   	    printf("n");
+		   }
+		}
+	}
+		else if(mode==4)
+		{  srand(time(NULL));
+		   int result,n;
+		   result=head->song_head->sid;
+		   song_ptr=head->song_head->next;
+		   for(n=2;song_ptr!=head->song_head;n++)
+		   { 
+		      if(rand()%n==0)
+		      { result=song_ptr->sid;
+			  }
+			  song_ptr=song_ptr->next;
+			  sleep(2);
+			  printf("%dn",result);
+		   }
+			
+			
+    	}
+ }
+}
+void reverse_song(struct playlist *head)
+{  struct song *current;
+   struct song *next_song;
+	 if(head->song_head==NULL)
+	 { printf("NO SONG FOUNDn");
+	 }
+	 else
+	 {  current=songstart;
+	    next_song=current->next;
+	    current->next=songlast;
+	    current->prev=next_song;
+	    while(next_song!=songstart)
+	    {
+		 next_song->prev=next_song->next;
+	     next_song->next=current;
+	     current=next_song;
+	     next_song=next_song->prev;
+	    }
+	 	songlast=songstart;
+	 	songstart=current;
+	 	head->song_head=songstart;
+	 	printf("SONG RVERSED");
+	 }
+}
+
+//--------------------------------------------------mode menu-------------------------------------------//
+int mode_menu()
+{  int choice;
+ 
+  printf("ENTER YOUR CHOICE :n");
+  printf("1. NORMAL. n");
+  printf("2. SINGLE REPEAT. n");
+  printf("3. COMPLETE REPEAT. n");
+  printf("4. SHUFFLE. n");
+  printf("ENTER YOUR CHOICE :");
+  scanf("%d",&choice);
+  switch(choice)
+  { case 1:return 1;
+           break;
+    case 2:return 2;
+           break;
+    case 3:return 3;
+           break;
+    case 4:return 4;
+           break;
+    default:printf("WRONG CHOICEn");
+            break;
+
+}
+ }
+ //---------------------------------------------------------------------------------------------------------------------------//
+ //--------------------------------------------display playlist with songs--------------------------------------------------------//
+void display_playlist_songs(struct playlist *head)
+{ 
+   printf("PLAYLIST ID :");
+   printf("%d",head->pid);
+   printf("nsongs of playlist %d",head->pid);
+   show_song(head,1);
+}
+//-------------------------------------------------------------------------------------------------------------------------------------//
+
+//-------------------------------------------------------sub menu-----------------------------------------------------------------//
+void sub_menu(struct playlist *head)
+{   int choice,mode_choice;
+  while(1)
+  {
+	printf("n------------SUB MENU----------------n");
+	printf("1. ADD SONG. n");
+	printf("2. PLAY/DISPLAY n");
+    printf("3. DELETE SONG n");
+    printf("4. REVERSE SONG n");
+    printf("5. MODE n");
+    printf("6. UNDO n");
+    printf("7. MAIN MENU n");
+    printf("ENTER YOUR CHOICE :");
+    scanf("%d",&choice);
+    system("cls");
+    switch(choice)
+    {
+    	case 1:add_song(head);
+    	       break;
+    	case 2:show_song(head,1);
+    	       break;
+    	case 3:delete_song(head);
+    	       break;
+    	case 4:reverse_song(head);
+	          break;
+	    case 5:mode_choice=mode_menu();
+	           show_song(head,mode_choice);
+	           break;
+	    case 6:undo();
+	           break;
+	    case 7:printf("n");
+	           display_menu();
+	           break;
+	    default:printf("WRONG CHOICE. ");
+	}
+  }
+}
+//---------------------------------------------------------------------------------------------------------------------------------------//
+//---------------------------------------------------------display menu------------------------------------------------------------------//
+void display_menu()
+{  int choice=0;
+   
+ 
+   while(1)
+  {
+	printf("n-------MENU-------n");
+	printf("1. CREATE PLAYLIST. n");
+	printf("2. SELECT PLAYLIST. n");
+	printf("3. DELETE PLAYLIST. n");
+	printf("4. DISPLAY PLAYLIST. n");
+	printf("5. DISPLAY PLAYLIST WITH SONG. n");
+	printf("6. DISPLAY PLAYLIST WITH SONG OF SELECTED PLAYLIST. n");
+	printf("7. EXIT. n");
+	printf("ENTER YOUR CHOICE :");
+	scanf("%d",&choice);
+	system("cls");
+    switch(choice)
+    { case 1:create_active=create_playlist();
+             sub_menu(create_active);
+             break;
+      case 2:select_active=select_playlist();
+             sub_menu(select_active);
+             break;
+      case 3:delete_playlist();
+             break;
+      case 4:display_playlist();
+             break;
+      case 5:
+	          display_playlist_songs(create_active);
+             break;
+      case 6: display_playlist_songs(select_active);
+             break;
+      case 7:printf("BYE!!!nAND THANKS FOR USING SOFTWARE");
+	         exit(0);
+	  default:printf("WRONG CHOICE. n");
+	}
+ }
+}
+
+
+int main()
+{ 
+ display_menu();
+}
+
+
+
+
+
+
+    
+	
